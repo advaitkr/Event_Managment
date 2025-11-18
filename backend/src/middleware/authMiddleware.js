@@ -29,3 +29,10 @@ exports.admin = (req, res, next) => {
     res.status(403).json({ message: "Require admin role" });
   }
 };
+exports.notFound = (req, res, next) => {
+  console.log('notFound hit for:', req.originalUrl);
+  const error = new Error(`Not Found - ${req.originalUrl}`);
+  res.status(404);
+  next(error);
+};
+

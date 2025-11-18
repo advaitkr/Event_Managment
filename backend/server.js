@@ -42,11 +42,15 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-
+const _dirname = path.resolve()
 // Create HTTP server and attach socket.io
 const server = http.createServer(app);
 initSockets(server);
-
+app.use(express.static(path.join(_dirname,"/client/build")))
+// universal fallback — works as catch-all without path-to-regexp parsing issues
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
