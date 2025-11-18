@@ -1,0 +1,9 @@
+node_modules/
+client/node_modules/
+backend/node_modules/
+client/build/
+deployment/ssl/*
+*.env
+.DS_Store
+npm-debug.log
+package-lock.json
