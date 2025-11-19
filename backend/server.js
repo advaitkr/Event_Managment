@@ -15,7 +15,7 @@ const eventRoutes = require("./src/routes/events");
 const authRoutes = require("./src/routes/auth");
 const { errorHandler, notFound } = require("./src/middleware/errorMiddleware");
 
-dotenv.config();
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
