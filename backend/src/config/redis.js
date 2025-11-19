@@ -1,31 +1,45 @@
 // CommonJS style
 const { createClient } = require("redis");
-
-// don't call dotenv here if you already call it in server.js, but it's harmless to call again
 require("dotenv").config();
 
-const redisClient = createClient({
-  url: process.env.REDIS_URL, // must be e.g. 'redis://localhost:6379'
-});
+const REDIS_URL = process.env.REDIS_URL;
+
+if (!REDIS_URL) {
+  console.warn("REDIS_URL not set. Skipping Redis initialization.");
+  module.exports = { redisClient: null, initRedis: async () => {} };
+  return;
+}
+
+const redisClient = createClient({ url: REDIS_URL });
 
 redisClient.on("error", (err) => {
   console.error("Redis Client Error", err);
 });
 
-async function initRedis() {
-  if (redisClient.isReady) {
-    console.log("Redis already connected");
-    return;
-  }
-  try {
-    await redisClient.connect();
-    console.log("Redis connected successfully");
-  } catch (err) {
-    console.error("Failed to connect to Redis:", err);
-    // decide whether to throw so app stops or continue running:
-    // throw err;
+// optional: limited retry connect with backoff
+async function initRedis({ maxAttempts = 5, delayMs = 1000 } = {}) {
+  if (redisClient.isReady) return;
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      console.log(`Attempting to connect to Redis (${attempt}/${maxAttempts}) at ${REDIS_URL}`);
+      await redisClient.connect();
+      console.log("Redis connected successfully");
+      return;
+    } catch (err) {
+      console.error(`Redis connect attempt ${attempt} failed:`, err.code || err.message);
+      if (attempt >= maxAttempts) {
+        console.error("Exceeded max Redis connect attempts. Giving up.");
+        return;
+      }
+      // exponential backoff
+      const wait = delayMs * Math.pow(2, attempt - 1);
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
 }
 
 module.exports = { redisClient, initRedis };
+
 
