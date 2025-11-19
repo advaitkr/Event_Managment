@@ -27,7 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
-
+initRedis().catch((err) => console.error("initRedis failed:", err));
 // Connect DB & Redis
 connectDB();
 initRedis();

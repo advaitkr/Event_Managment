@@ -1,4 +1,4 @@
-// CommonJS style
+
 const { createClient } = require("redis");
 require("dotenv").config();
 
@@ -18,6 +18,14 @@ redisClient.on("error", (err) => {
 
 // optional: limited retry connect with backoff
 async function initRedis({ maxAttempts = 5, delayMs = 1000 } = {}) {
+  if (!REDIS_URL) {
+    console.warn("REDIS_URL not set — skipping Redis init.");
+    return;
+  }
+  if (redisClient.isReady) {
+    console.log("Redis already connected");
+    return;
+  }
   if (redisClient.isReady) return;
   let attempt = 0;
   while (attempt < maxAttempts) {
