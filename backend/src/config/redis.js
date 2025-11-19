@@ -1,23 +1,23 @@
-const { createClient } = require('redis');
-let client;
+const { createClient } = require("redis");
+require("dotenv").config();
 
+const redisClient = createClient({
+  url: process.env.REDIS_URL, // must be ONLY redis://localhost:6379
+});
 
-const initRedis = async () => {
-const url = process.env.REDIS_URL;
-if (!url) {
-console.log('REDIS_URL not provided, skipping redis init');
-return;
+redisClient.on("error", (err) => {
+  console.error("Redis Client Error", err);
+});
+
+async function connectRedis() {
+  try {
+    await redisClient.connect();
+    console.log("Redis connected successfully");
+  } catch (err) {
+    console.error("Failed to connect to Redis:", err);
+  }
 }
 
+connectRedis();
 
-client = createClient({ url });
-client.on('error', (err) => console.error('Redis Client Error', err));
-await client.connect();
-console.log('Redis connected');
-};
-
-
-const getRedisClient = () => client;
-
-
-module.exports = { initRedis, getRedisClient };
+module.exports = redisClient;
