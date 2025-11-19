@@ -1,23 +1,27 @@
+// server.js
 const express = require("express");
 const http = require("http");
-const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const helmet = require("helmet");
-const morgan = require("morgan")
+const morgan = require("morgan");
 const compression = require("compression");
+
 const { connectDB } = require("./src/config/db");
 const { initSockets } = require("./src/sockets/eventSocket");
-const { initRedis } = require("./src/config/redis");
+// import 'connect' as initRedis and also expose getClient if needed
+const { connect: initRedis, getClient } = require("./src/config/redis");
+
 const eventRoutes = require("./src/routes/events");
 const authRoutes = require("./src/routes/auth");
 const { errorHandler, notFound } = require("./src/middleware/errorMiddleware");
 
-require("dotenv").config();
+dotenv.config();
 
 const app = express();
+
 app.use(cors());
 app.use(helmet());
 app.use(compression());
@@ -27,31 +31,46 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
-initRedis().catch((err) => console.error("initRedis failed:", err));
-// Connect DB & Redis
-connectDB();
-initRedis();
 
-// Routes
-app.use("/api/events", eventRoutes);
-app.use("/api/auth", authRoutes);
+// Wrap startup in async IIFE so we can await DB + Redis before listening
+(async function start() {
+  try {
+    await connectDB();
+    console.log("MongoDB connected");
 
-app.get("/", (req, res) => res.send("API is running..."));
+    // call initRedis **once** and await it
+    await initRedis();
+    console.log("Redis initialized");
 
-app.use(notFound);
-app.use(errorHandler);
+    // Register routes
+    app.use("/api/events", eventRoutes);
+    app.use("/api/auth", authRoutes);
 
-const PORT = process.env.PORT || 5000;
-const _dirname = path.resolve()
-// Create HTTP server and attach socket.io
-const server = http.createServer(app);
-initSockets(server);
-app.use(express.static(path.join(_dirname,"/client/build")))
-// universal fallback — works as catch-all without path-to-regexp parsing issues
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    app.get("/", (req, res) => res.send("API is running..."));
 
+    app.use(notFound);
+    app.use(errorHandler);
+
+    const PORT = process.env.PORT || 5000;
+    const _dirname = path.resolve();
+
+    const server = http.createServer(app);
+    initSockets(server);
+
+    // Serve client build if available
+    const clientBuildPath = path.join(_dirname, "/client/build");
+    if (fs.existsSync(clientBuildPath)) {
+      app.use(express.static(clientBuildPath));
+      app.use((req, res) => res.sendFile(path.join(clientBuildPath, "index.html")));
+    } else {
+      app.use((req, res) => res.status(404).send("Not Found"));
+    }
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err && err.message ? err.message : err);
+    process.exit(1);
+  }
+})();
