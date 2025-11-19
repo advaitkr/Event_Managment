@@ -6,6 +6,7 @@ const path = require("path");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const { connectDB } = require("./src/config/db");
 const { initSockets } = require("./src/sockets/eventSocket");
 const { initRedis } = require("./src/config/redis");
